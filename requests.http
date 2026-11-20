@@ -1,0 +1,116 @@
+@base = http://localhost:8080
+@json = application/json
+
+### 1. Создать организацию → 201
+POST {{base}}/companies
+Content-Type: {{json}}
+
+{"name": "ТОО Алматы Трейд Компани", "bin": "170340021554", "phone": "+7 701 111 22 33"}
+
+### 2. Та же организация повторно (дубль БИН) → 409
+POST {{base}}/companies
+Content-Type: {{json}}
+
+{"name": "Дубль", "bin": "170340021554", "phone": "+7 701 111 22 33"}
+
+### 3. Невалидный БИН → 422 с указанием поля
+POST {{base}}/companies
+Content-Type: {{json}}
+
+{"name": "ТОО Ошибка", "bin": "2l064090Ol80", "phone": "+7 701 111 22 33"}
+
+### 4. Вторая организация → 201
+POST {{base}}/companies
+Content-Type: {{json}}
+
+{"name": "ТОО Кокжиек Курылыс", "bin": "210640900180", "phone": "+7 727 222 33 44"}
+
+### 5. Список с фильтром и пагинацией → 200
+GET {{base}}/companies?status=new&limit=10&offset=0
+
+### 6. Встреча пн 07.01.2030 10:00 Алматы (05:00 UTC), менеджер 1 → 201
+POST {{base}}/meetings
+Content-Type: {{json}}
+
+{"company_id": 1, "manager_id": 1, "start_at": "2030-01-07T05:00:00Z"}
+
+### 7. Встреча встык 11:00 Алматы у того же менеджера → 201 (не конфликт)
+POST {{base}}/meetings
+Content-Type: {{json}}
+
+{"company_id": 2, "manager_id": 1, "start_at": "2030-01-07T06:00:00Z"}
+
+### 8. Пересечение 10:30 у менеджера 1 → 409
+POST {{base}}/meetings
+Content-Type: {{json}}
+
+{"company_id": 2, "manager_id": 1, "start_at": "2030-01-07T05:30:00Z"}
+
+### 9. Организация 1 с другим менеджером в то же время → 409
+POST {{base}}/meetings
+Content-Type: {{json}}
+
+{"company_id": 1, "manager_id": 2, "start_at": "2030-01-07T05:30:00Z"}
+
+### 10. Начало в 17:30 Алматы → 422 (не умещается до 18:00)
+POST {{base}}/meetings
+Content-Type: {{json}}
+
+{"company_id": 2, "manager_id": 2, "start_at": "2030-01-07T12:30:00Z"}
+
+### 11. Суббота → 422
+POST {{base}}/meetings
+Content-Type: {{json}}
+
+{"company_id": 2, "manager_id": 2, "start_at": "2030-01-12T05:00:00Z"}
+
+### 12. Время без часового пояса → 422
+POST {{base}}/meetings
+Content-Type: {{json}}
+
+{"company_id": 2, "manager_id": 2, "start_at": "2030-01-07T10:00:00"}
+
+### 13. Звонок meeting_set без встречи → 422
+POST {{base}}/calls
+Content-Type: {{json}}
+
+{"company_id": 1, "result": "meeting_set"}
+
+### 14. Звонок meeting_set со встречей 1 → 201, статус организации = meeting_set
+POST {{base}}/calls
+Content-Type: {{json}}
+
+{"company_id": 1, "result": "meeting_set", "meeting_id": 1, "comment": "Договорились на понедельник"}
+
+### 15. Звонок без ответа → 201
+POST {{base}}/calls
+Content-Type: {{json}}
+
+{"company_id": 2, "result": "no_answer"}
+
+### 16. Перенос встречи 1 на 14:00 Алматы → 200, original_start_at сохранён, history растёт
+PATCH {{base}}/meetings/1
+Content-Type: {{json}}
+
+{"start_at": "2030-01-07T09:00:00Z"}
+
+### 17. Просмотр встречи с историей
+GET {{base}}/meetings/1
+
+### 18. Отмена встречи 2 → 200
+PATCH {{base}}/meetings/2
+Content-Type: {{json}}
+
+{"status": "cancelled"}
+
+### 19. Изменение отменённой встречи → 409
+PATCH {{base}}/meetings/2
+Content-Type: {{json}}
+
+{"start_at": "2030-01-07T10:00:00Z"}
+
+### 20. Расписание менеджера 1 на день (дата по Алматы) → 200
+GET {{base}}/managers/1/schedule?date=2030-01-07
+
+### 21. Несуществующий менеджер → 404
+GET {{base}}/managers/999/schedule?date=2030-01-07
