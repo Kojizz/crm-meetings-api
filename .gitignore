@@ -1,0 +1,9 @@
+target/
+*.db
+*.db-journal
+.idea/
+*.iml
+.vscode/
+out/
+.DS_Store
+.env
